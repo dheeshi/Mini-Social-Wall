@@ -1,65 +1,47 @@
-import { getDocs, collection } from "firebase/firestore";
-import { useEffect, useState } from "react";
+// src/pages/main/main.tsx
+import React, { useEffect, useState } from "react";
+import { collection, query, orderBy, onSnapshot, limit } from "firebase/firestore";
 import { db } from "../../config/firebase";
-import { Post } from "./post";
+import { Post as PostComponent } from "../post/post";
 
-
-export interface Post {
-    id: string;
-    userId: string;
-    title: string;
-    username: string;
-    description: string;
+export interface PostType {
+  id: string;
+  userId: string;
+  title: string;
+  username?: string;
+  description: string;
+  imageUrl?: string | null;
+  likes?: string[];
+  createdAt?: any;
 }
 
+export default function Main() {
+  const [postsList, setPostsList] = useState<PostType[]>([]);
 
-export const Main = () => {
+  useEffect(() => {
+    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(100));
+    const unsub = onSnapshot(q, (snap) => {
+      setPostsList(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })));
+    }, err => console.error(err));
+    return () => unsub();
+  }, []);
 
-    const [postsList, setPostsList] = useState<Post[] | null>(null);
-    const postRef = collection(db, "posts");
+  return (
+    <main className="min-h-screen bg-gradient-to-l from-indigo-900 to-violet-500 py-8">
+      <div className="max-w-5xl mx-auto px-4">
+        <section className="text-center text-white mb-8">
+          <h1 className="text-4xl font-bold mb-2">Welcome!</h1>
+          <p className="text-xl">Come together and share your mood.</p>
+        </section>
 
-    const getPosts = async () => {
-        const data = await getDocs(postRef)
-        setPostsList(
-            data.docs.map((doc) => ({ ...doc.data(), id: doc.id })) as Post[]
-        );
-
-    };
-
-    useEffect(() => {
-        getPosts();
-    }, []);
-
-    return (
-        <div className="py-20 bg-gradient-to-l from-indigo-900 to-violet-500 ">
-
-            <div className="py-40">
-                <div className="container mx-auto px-6">
-                    <h2 className="text-4xl font-bold mb-2 text-white">
-                        Welcome!
-                    </h2>
-                    <h3 className="text-2xl mb-8 text-gray-200">
-                        come together and share your mood.
-                    </h3>
-
-                    <button className="bg-white font-bold rounded-full py-4 px-8 shadow-lg uppercase tracking-wider">
-                        <a href="/" >Let's Go</a>
-                    </button>
-                </div>
-            </div>
-
-
-
-            <div className="py-40" >
-
-                {postsList?.map((post) => (
-                    <Post post={post} />
-                ))}
-
-            </div>
-
-
-
-        </div>
-    );
-};
+        <section className="space-y-6">
+          {postsList.length === 0 ? (
+            <p className="text-center text-white">No posts yet — be the first!</p>
+          ) : (
+            postsList.map(p => <PostComponent key={p.id} post={p} />)
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
